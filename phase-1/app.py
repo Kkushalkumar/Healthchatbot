@@ -430,7 +430,7 @@ with tab2:
 st.markdown("""
 <hr>
 <div style='text-align: center; color: #888; font-size: 0.9em;'>
-    &copy; 2026 Healthbot | Powered by Groq LLM & SerpAPI | <a href='https://github.com/Kkushalkumar' target='_blank'>GitHub</a>
+    &copy; 2026 Healthbot | Powered by Groq LLM & SerpAPI | <a href='https://github.com/Kkushalkumar/Healthchatbot' target='_blank'>GitHub</a>
 </div>
 """, unsafe_allow_html=True)
 
