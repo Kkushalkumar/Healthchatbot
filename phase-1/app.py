@@ -120,7 +120,7 @@ st.set_page_config(page_title="🩺 Healthbot - Medical Assistant", layout="wide
 # --- Branding and Header ---
 st.markdown("""
 <div style='display: flex; align-items: center; gap: 1rem;'>
-    <img src='https://pixabay.com/images/search/stethoskop/' width='48'/>
+    <img src='https://img.icons8.com/fluency/48/000000/hospital-3.png' width='48'/>
     <h1 style='margin-bottom: 0;'>Healthbot</h1>
 </div>
 <h4 style='margin-top: 0;'>AI Medical Assistant </h4>
@@ -175,12 +175,45 @@ with tab1:
 
 # --- Agentic Skills ---
 def skill_symptom_checker(symptom):
-    # Minimal demo: just echo
-    return f"(Skill) You entered: {symptom}. For real triage, integrate with a symptom checker API."
+    # Minimal demo: use very simple symptom parsing for a better response
+    prompt = symptom.lower().replace("symptom", "").strip()
+    if "headache" in prompt:
+        return (
+            "(Skill) It sounds like a headache. "
+            "For mild headaches, rest, drink water, and avoid bright screens. "
+            "If the pain is severe, sudden, or comes with fever, seek medical care."
+        )
+    if "fever" in prompt or "temperature" in prompt:
+        return (
+            "(Skill) You may have a fever symptom. "
+            "Stay hydrated and monitor your temperature; if it stays high, contact a doctor."
+        )
+    if "cough" in prompt:
+        return (
+            "(Skill) A cough can be caused by many things. "
+            "If it is persistent, worsening, or accompanied by shortness of breath, see a healthcare provider."
+        )
+    return (
+        f"(Skill) I heard: '{prompt}'. "
+        "This is a demo only. For a real diagnosis, consult a medical professional."
+    )
 
 def skill_drug_info(drug):
-    # Minimal demo: just echo
-    return f"(Skill) Info for {drug}: For real info, integrate with a drug database API."
+    query = drug.lower().replace("drug", "").strip()
+    if "aspirin" in query:
+        return (
+            "(Skill) Aspirin is a common pain reliever and anti-inflammatory. "
+            "Use it only as directed and avoid it if you have stomach ulcers or bleeding disorders."
+        )
+    if "paracetamol" in query or "acetaminophen" in query:
+        return (
+            "(Skill) Paracetamol (acetaminophen) helps reduce pain and fever. "
+            "Do not exceed the recommended dose and avoid combining with other acetaminophen products."
+        )
+    return (
+        f"(Skill) I do not have specific data for '{query}'. "
+        "Please check a trusted medical source or consult a pharmacist."
+    )
 
 def skill_health_tip():
     # Minimal demo: random tip
@@ -195,33 +228,59 @@ def skill_health_tip():
 
 def agentic_router(user_input):
     # Minimal intent router
-        # Try WebSocket for echo and tip
-        ws_result = ws_agentic_skill(user_input)
-        if ws_result:
-            return ws_result
-        if "symptom" in user_input.lower():
-            return skill_symptom_checker(user_input)
-        elif "drug" in user_input.lower():
-            return skill_drug_info(user_input)
-        elif "tip" in user_input.lower():
-            return skill_health_tip()
-        else:
-            return "(Agent) No matching skill found. Try mentioning 'symptom', 'drug', or 'tip'."
-    # --- Reflection/Self-Correction Wrapper ---
+    ws_result = ws_agentic_skill(user_input)
+    if ws_result:
+        return ws_result
+    if "symptom" in user_input.lower():
+        return skill_symptom_checker(user_input)
+    elif "drug" in user_input.lower():
+        return skill_drug_info(user_input)
+    elif "tip" in user_input.lower():
+        return skill_health_tip()
+    else:
+        return "(Agent) No matching skill found. Try mentioning 'symptom', 'drug', or 'tip'."
+
+# --- Reflection/Self-Correction Wrapper ---
 def reflection_agent(user_input):
-        response = agentic_router(user_input)
-        # Minimal reflection: check for generic or error responses
-        if not response or "no matching skill" in response.lower() or "error" in response.lower():
-            # Self-correct: try to rephrase or provide a fallback
-            if "symptom" in user_input.lower():
-                return "(Reflection) Sorry, I couldn't process your symptom. Please try rephrasing or provide more details."
-            elif "drug" in user_input.lower():
-                return "(Reflection) Sorry, I couldn't find information on that drug. Please check the spelling or try another."
-            elif "tip" in user_input.lower():
-                return skill_health_tip()
-            else:
-                return "(Reflection) Sorry, I couldn't understand your request. Please try again."
-        return response
+    lowered = user_input.lower()
+    if "symptom" in lowered:
+        original = skill_symptom_checker(user_input)
+        correction = (
+            "(Reflection) I detected a symptom request and interpreted it as a health symptom summary. "
+            "Here is a clearer explanation and guidance:"
+        )
+        return (
+            f"{correction}\n\n{original}\n\n"
+            "---\nOriginal skill output:\n"
+            f"{original}"
+        )
+    elif "drug" in lowered:
+        original = skill_drug_info(user_input)
+        correction = (
+            "(Reflection) I detected a drug information request. "
+            "Here is the corrected guidance while preserving the original skill output:"
+        )
+        return (
+            f"{correction}\n\n{original}\n\n"
+            "---\nOriginal skill output:\n"
+            f"{original}"
+        )
+    elif "tip" in lowered:
+        original = skill_health_tip()
+        correction = (
+            "(Reflection) I detected a health tip request. "
+            "Here is a friendly suggestion plus the original tip output:"
+        )
+        return (
+            f"{correction}\n\n{original}\n\n"
+            "---\nOriginal skill output:\n"
+            f"{original}"
+        )
+
+    response = agentic_router(user_input)
+    if not response or "no matching skill" in response.lower() or "error" in response.lower():
+        return "(Reflection) Sorry, I couldn't understand your request. Please try a clearer phrase using 'symptom', 'drug', or 'tip'."
+    return "(Reflection) I wasn't sure which skill matched exactly, so I used the router and got this response:\n" + response
 
 # --- Minimal WebSocket client for agentic skills ---
 # --- Minimal WebSocket client for agentic skills ---
@@ -247,15 +306,16 @@ with tab7:
         else:
             result = agentic_router(skill_input)
             st.info(result)
-        st.subheader("Agentic Skills Demo (with Reflection)")
-        st.markdown("Available skills: symptom checker, drug info, health tip generator. Now with self-correction!")
-        skill_input = st.text_input("Type your request (e.g., 'symptom headache', 'drug aspirin', 'tip')", "", key="skill_input_2")
-        if st.button("Run Skill", key="skill_btn_2"):
-            if not skill_input.strip():
-                st.warning("Please enter a request.")
-            else:
-                result = reflection_agent(skill_input)
-                st.info(result)
+
+    st.subheader("Agentic Skills Demo (with Reflection)")
+    st.markdown("Available skills: symptom checker, drug info, health tip generator. Now with self-correction!")
+    skill_input_2 = st.text_input("Type your request (e.g., 'symptom headache', 'drug aspirin', 'tip')", "", key="skill_input_2")
+    if st.button("Run Skill", key="skill_btn_2"):
+        if not skill_input_2.strip():
+            st.warning("Please enter a request.")
+        else:
+            result = reflection_agent(skill_input_2)
+            st.info(result)
 import datetime
 import urllib.parse
 # --- Medication Reminders Tab ---
@@ -430,7 +490,7 @@ with tab2:
 st.markdown("""
 <hr>
 <div style='text-align: center; color: #888; font-size: 0.9em;'>
-    &copy; 2026 Healthbot | Powered by Groq LLM & SerpAPI | <a href='https://github.com/Kkushalkumar/Healthchatbot' target='_blank'>GitHub</a>
+    &copy; 2026 Healthbot | Powered by Groq LLM & SerpAPI | <a href='https://github.com/dev-ploy/Healthbot' target='_blank'>GitHub</a>
 </div>
 """, unsafe_allow_html=True)
 
